@@ -13,7 +13,7 @@ fuzzing inputs, campaigns, and generated results are not included.
 
 ```sh
 git clone --branch publication-source-only \
-  https://github.com/SunilChowdary1909/FRET_LINUX.git FRET_LINUX
+  https://github.com/SunilChowdary1909/FRET_LINUX-source-only.git FRET_LINUX
 cd FRET_LINUX
 git submodule update --init -- WORK/FRET
 git -C WORK/FRET submodule update --init
