@@ -12,15 +12,20 @@ fuzzing inputs, campaigns, and generated results are not included.
 ## Clone
 
 ```sh
-git clone --branch publication-source-only --recurse-submodules \
-  https://github.com/SunilChowdary1909/FRET_LINUX.git
+git clone --branch publication-source-only \
+  https://github.com/SunilChowdary1909/FRET_LINUX.git FRET_LINUX
 cd FRET_LINUX
-git submodule update --init --recursive
+git submodule update --init -- WORK/FRET
+git -C WORK/FRET submodule update --init
+git -C WORK/FRET/qemu-libafl-bridge submodule update --init
 ```
 
 The FRET submodule pins the corresponding source-only LibAFL and QEMU
 publication commits. FreeRTOS remains referenced from its existing upstream
-repository; it is not required as the Linux target.
+repository; it is not required as the Linux target. These commands initialize
+the required submodule layers without recursively fetching EDK2's optional
+UnitTestFramework Subhook dependency, whose upstream repository is unavailable.
+The LibAFL QEMU build disables tests.
 
 ## Prerequisites
 
