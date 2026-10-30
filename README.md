@@ -1,52 +1,50 @@
 # FRET_LINUX
 
-FRET_LINUX is the Linux thesis implementation: a grey-box fuzzer for studying
-worst-case response times (WORT) of real-time workloads running in an AArch64
-Linux guest under QEMU system emulation.
+This repository contains my Linux extension of FRET for exploring worst-case
+response times (WORT) of real-time workloads in an AArch64 Linux guest. The
+fuzzer runs the guest in QEMU system emulation and uses LibAFL for input
+generation and feedback.
 
-## Public repositories
+## Repository structure
 
-- [FRET_LINUX-source-only](https://github.com/SunilChowdary1909/FRET_LINUX-source-only)
-  is this repository and contains the Linux fuzzer, analyzer, benchmark source,
-  configuration, and build documentation.
-- [FRET-source-only](https://github.com/SunilChowdary1909/FRET-source-only) is
-  the supporting FRET framework, included here at `WORK/FRET`.
-- [FRET-LibAFL](https://github.com/SunilChowdary1909/FRET-LibAFL) and
-  [FRET-qemu](https://github.com/SunilChowdary1909/FRET-qemu) are pinned as
-  submodules of `WORK/FRET`. Their required source modifications are already
-  included at the pinned commits; no local patch-copying step is needed.
-- FreeRTOS remains an upstream submodule of FRET for the original framework.
-  It is not the target operating system for this Linux project.
+- **FRET_LINUX-source-only** (this repository) contains the Linux fuzzer,
+  analyzer, sample workloads, and their configuration.
+- **[FRET-source-only](https://github.com/SunilChowdary1909/FRET-source-only)**
+  is the supporting FRET framework, checked out at `WORK/FRET`.
+- **[FRET-LibAFL](https://github.com/SunilChowdary1909/FRET-LibAFL)** and
+  **[FRET-qemu](https://github.com/SunilChowdary1909/FRET-qemu)** are pinned
+  submodules of FRET. The required LibAFL and QEMU changes are already in
+  those commits; no patches need to be copied manually.
+- FRET retains its upstream FreeRTOS submodule for the original framework.
+  FreeRTOS is not the target OS for this Linux extension.
 
-## What it does
+The Linux fuzzer observes kernel scheduling and task state through VMI hooks
+in QEMU/TCG; an ftrace-based observation module is also present. The hooks are
+installed before the fast snapshot so they remain active after restoration.
+The fuzzer builds a state-transition graph (STG) from observed execution and
+uses STG feedback and mutations to explore scheduling paths. Timing feedback
+tracks costly executions, and the optional WORT output records the current
+worst response time during a campaign.
 
-The Linux fuzzer combines LibAFL with a patched QEMU system emulator. It
-injects workload data and configured interrupts into a Linux guest and uses
-execution timing and observed system state to guide exploration.
+Sample workloads are in `FRET_Linux/linux_apps/`: `avfusion.c` is a
+multi-stage input-dependent workload, while `chain_mtx.c` and
+`periodic_mtx.c` exercise mutex and periodic-task behavior. The analyzer in
+`FRET_Linux/linux_fret_analyzer/` reads fuzzer traces and can produce STG,
+WCET-related, job, and timing-export reports.
 
-The VMI observation path installs QEMU/TCG hooks at Linux kernel symbols to
-observe scheduling and task state during guest execution. Hooks are installed
-before the fast snapshot so they remain active after snapshot restoration. The
-source also contains an ftrace-oriented state-observation module.
+## Prerequisites
 
-The state-transition graph (STG) represents observed system states and
-execution intervals as nodes and transitions. STG feedback and mutations can
-guide exploration toward new scheduling paths. Timing feedback tracks costly
-executions; WORT output records the observed worst response-time value over a
-campaign when enabled.
+- Linux x86_64 host and Git
+- Nix with flakes enabled for the fuzzer and analyzer builds; the FRET flake
+  provides the Rust toolchain and QEMU build dependencies
+- `aarch64-linux-gnu-gcc` for building `avfusion` directly
+- Podman if using the provided periodic/mutex workload build scripts
+- An AArch64 Linux kernel image (`Image`), matching symbol-bearing `vmlinux`,
+  and bootable ext4 root filesystem for execution
 
-The sample workloads are in [`FRET_Linux/linux_apps/`](FRET_Linux/linux_apps/):
+## Setup
 
-- `avfusion.c` is a multi-stage, input-dependent workload; use
-  `--span-blocking` for its release-to-completion response window.
-- `chain_mtx.c` and `periodic_mtx.c` provide mutex/periodic task workloads.
-- The app README describes their harness symbols and available build scripts.
-
-The offline analyzer in `FRET_Linux/linux_fret_analyzer/` can build an STG
-from the fuzzer's CSV trace, report WCET-related information, analyze jobs,
-and optionally export timing data.
-
-## Clone
+Clone the public source branch and initialize the dependencies in layers:
 
 ```sh
 git clone --branch publication-source-only \
@@ -59,18 +57,15 @@ git -C WORK/FRET submodule update --init
 git -C WORK/FRET/qemu-libafl-bridge submodule update --init
 ```
 
-These are the verified layered clone commands. They initialize FRET, its
-LibAFL/QEMU/FreeRTOS references, and QEMU's direct submodules. Full recursive
-cloning additionally attempts EDK2's optional nested UnitTestFramework
-Subhook dependency, whose upstream URL currently returns HTTP 404; the
-documented Linux fuzzer build disables QEMU tests and does not need it.
+These commands initialize the required FRET and QEMU submodules. Full
+recursive cloning also attempts EDK2's optional nested UnitTestFramework
+Subhook dependency, whose upstream URL currently returns HTTP 404. The
+LibAFL QEMU build disables tests and does not require that dependency.
 
-## Prerequisites and build
+## Build
 
-Use a Linux x86_64 host with Git and Nix flakes enabled. The FRET flake
-provides the pinned Rust toolchain and QEMU build dependencies. The full
-fuzzer build has **not yet been verified**: the prior build attempt could not
-run because Nix was unavailable in the build environment.
+The full build has not yet been verified: Nix was unavailable in the
+environment where it was attempted.
 
 Build the fuzzer from the repository root:
 
@@ -78,11 +73,11 @@ Build the fuzzer from the repository root:
 bash FRET_Linux/linux_fret_fuzzer/build_fuzzer.sh
 ```
 
-The script enters the `WORK/FRET` Nix development environment and builds the
-manifest at `FRET_Linux/linux_fret_fuzzer/Cargo.toml`. The expected debug
-binary path is `FRET_Linux/linux_fret_fuzzer/target/debug/fret`.
+This script enters the `WORK/FRET` Nix development environment and builds
+`FRET_Linux/linux_fret_fuzzer/Cargo.toml`. The expected debug executable is
+`FRET_Linux/linux_fret_fuzzer/target/debug/fret`.
 
-Build the `avfusion` sample workload with an AArch64 Linux cross-compiler:
+Build the `avfusion` sample workload with the AArch64 cross-compiler:
 
 ```sh
 mkdir -p FRET_Linux/linux_apps/bin
@@ -91,53 +86,44 @@ aarch64-linux-gnu-gcc -static -O2 -pthread \
   FRET_Linux/linux_apps/avfusion.c -lrt
 ```
 
-The `build_apps.sh`, `build_chain.sh`, and `build_v2.sh` scripts are also
-present for the periodic/mutex examples; they use Podman and an Ubuntu
-container to install the cross-compiler. Build outputs go under
-`FRET_Linux/linux_apps/bin/`, which is not part of the source snapshot.
+The `build_apps.sh`, `build_chain.sh`, and `build_v2.sh` scripts build the
+periodic/mutex examples using Podman. Their binaries are written to
+`FRET_Linux/linux_apps/bin/` and are not included in this repository.
 
-## Configuration and runtime artifacts
+## Configuration and runtime files
 
-The published runtime configuration is
-[`fuzz_config.txt`](FRET_Linux/linux_fret_fuzzer/fuzz_config.txt), a
-`KEY=VALUE` text file containing `FUZZ_MAIN`, `FUZZ_INPUT`, `FUZZ_INPUT_LEN`,
-`BREAKPOINT`, and `INTERRUPTS`. The repository also includes an optional
-[`fuzz_config.csv`](FRET_Linux/linux_fret_fuzzer/fuzz_config.csv) with entries
-only for the published `periodic_mtx`, `chain_mtx`, `avfusion`, and
-`avfusion_oracle` sample workloads; unrelated target configurations are not
-included. To select a CSV row, pass `--config-key avfusion` (or another listed
-key) along with `--config .../fuzz_config.csv`. The text configuration remains
-the default example used below.
+`FRET_Linux/linux_fret_fuzzer/fuzz_config.txt` is the default `KEY=VALUE`
+configuration. It sets `FUZZ_MAIN`, `FUZZ_INPUT`, `FUZZ_INPUT_LEN`,
+`BREAKPOINT`, and `INTERRUPTS`.
 
-The CSV and text files contain example target addresses. Verify or update
-them for the exact target ELF and guest kernel you build; these addresses have
-not been validated against newly built binaries in this environment.
+`FRET_Linux/linux_fret_fuzzer/fuzz_config.csv` is an optional alternative with
+rows for `periodic_mtx`, `chain_mtx`, `avfusion`, and `avfusion_oracle`.
+Select a row with `--config-key`, for example:
 
-The source publication does not include:
+```sh
+--config FRET_Linux/linux_fret_fuzzer/fuzz_config.csv --config-key avfusion
+```
 
-- an AArch64 Linux kernel `Image` and matching symbol-bearing `vmlinux`;
-- a bootable ext4 root filesystem containing and launching the workload;
-- compiled target binaries, guest applications, fuzzing inputs, campaigns,
-  traces, logs, or generated analysis outputs.
+The CSV and text config contain example target addresses. Check or update
+them for the target ELF and guest kernel you use; these addresses have not
+been verified against newly built binaries here.
 
-Provide those runtime artifacts separately. In particular, make sure the
-guest starts the workload and that the symbols/addresses in the text
-configuration match the kernel and target ELF. The fuzzer's `--target-elf`
-option supplies target symbol information; it does not provide the guest
-kernel or root filesystem.
+The repository does not include the guest kernel, `vmlinux`, root filesystem,
+compiled workload binaries, or campaign inputs and outputs. Prepare the
+kernel and rootfs separately, and ensure the guest starts the workload and
+that the configured addresses match your build.
 
-## Run a short campaign
+## Run
 
-After building the fuzzer and workload and preparing the guest artifacts,
-set paths to your own kernel, `vmlinux`, and root filesystem. Keep outputs
-outside the source tree:
+After building the fuzzer and workload, set paths to your guest artifacts.
+The example keeps generated files outside the source tree:
 
 ```sh
 ARTIFACTS=/path/to/linux-artifacts
 OUT=/tmp/fret-linux-run
 mkdir -p "$OUT"
 
-FRET_LINUX/linux_fret_fuzzer/target/debug/fret \
+FRET_Linux/linux_fret_fuzzer/target/debug/fret \
   --kernel "$ARTIFACTS/Image" \
   --symbols "$ARTIFACTS/vmlinux" \
   --rootfs "$ARTIFACTS/rootfs.ext4" \
@@ -153,14 +139,13 @@ FRET_LINUX/linux_fret_fuzzer/target/debug/fret \
   fuzz --seed 123 --time 60
 ```
 
-The output prefix may produce corpus, case, trace, graph, and timing files.
-They are experiment outputs: keep them outside the repository and do not
-commit them.
+`--span-blocking` measures the `avfusion` response window from release through
+completion, including blocking intervals. Trace, graph, corpus, and timing
+outputs are generated data; keep them out of the repository.
 
-## Analyze a trace
+## Analyze
 
-The fuzzer's `--dump-traces` output includes a CSV trace suitable for the
-offline analyzer. Build the analyzer in the FRET Nix environment:
+Build the analyzer from the repository root in the FRET Nix environment:
 
 ```sh
 PROJECT_ROOT="$PWD"
@@ -172,7 +157,7 @@ nix develop . --command cargo build --release \
 cd "$PROJECT_ROOT"
 ```
 
-Then analyze a trace and write generated reports outside the source tree:
+Use the CSV trace produced by `--dump-traces` as analyzer input:
 
 ```sh
 FRET_Linux/linux_fret_analyzer/target/release/fret_linux_analyzer \
@@ -184,15 +169,5 @@ FRET_Linux/linux_fret_analyzer/target/release/fret_linux_analyzer \
   --jobs-output "$OUT/jobs.json"
 ```
 
-Add `--timing-export` to the analyzer to export its timing-compatible CSV/HTML
-reports. Analyzer inputs and all generated reports are local runtime data,
-not part of this source-only repository.
-
-## Reproducibility status
-
-The source, scripts, submodule pins, and text configuration are published.
-The layered clone procedure was verified. The full fuzzer/analyzer build and
-end-to-end run remain unverified because Nix, Cargo, and Rust were unavailable
-in the verification environment. A matching kernel/rootfs, running guest
-workload, and verified target addresses are also required before a campaign
-can be reproduced.
+Add `--timing-export` to write timing-compatible CSV and HTML reports. These
+reports and the input trace are local runtime data, not source files.
