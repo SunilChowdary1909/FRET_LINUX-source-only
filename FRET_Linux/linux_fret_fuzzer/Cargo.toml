@@ -1,0 +1,90 @@
+[package]
+name = "fret"
+version = "0.8.2"
+authors = ["Alwin Berger <alwin.berger@tu-dortmund.de>"]
+edition = "2021"
+
+[features]
+default = ["std", "snapshot_fast", "do_hash_notify_state", "do_hash_notify_value", "shortcut", "trace_job_response_times" ]
+std = []
+# Exec environemnt basics
+snapshot_restore = []
+snapshot_fast = [ "snapshot_restore" ]
+singlecore = []
+restarting = ['singlecore']
+run_until_saturation = []
+fuzz_int = []
+shortcut = []
+linux = []
+# information capture
+observe_edges = [] # observe cfg edges
+observe_hitcounts = [ "observe_edges" ] # reduces edge granularity
+observe_systemstate = []
+do_hash_notify_state = []
+do_hash_notify_value = []
+trace_job_response_times = [ "trace_stg" ]
+trace_stg = [ "observe_systemstate" ]
+trace_reads = [ "trace_stg", "trace_job_response_times" ]
+# feedbacks
+feed_stg = [ "trace_stg", "observe_systemstate" ]
+feed_stg_edge = [ "feed_stg"]
+feed_stg_abb_woet = [ "feed_stg"]
+feed_stg_pathhash = [ "feed_stg"]
+feed_stg_abbhash = [ "feed_stg"]
+feed_stg_aggregatehash = [ "feed_stg"]
+feed_job_woet = [ "trace_job_response_times"]
+feed_job_wort = [ "trace_job_response_times"]
+feed_job_crpd = [ "trace_job_response_times"]
+mutate_stg = [ "observe_systemstate", "trace_reads" ]
+feed_longest = [ ]
+feed_afl = [ "observe_edges" ]
+feed_genetic = []
+gensize_1 = [ ]
+gensize_10 = [ ]
+gensize_100 = [ ]
+gensize_1000 = [ ]
+# schedulers
+sched_genetic = []
+sched_afl = []
+sched_stg = []
+sched_stg_edge = ['sched_stg'] # every edge in the stg
+sched_stg_pathhash = ['sched_stg'] # every path in the stg
+sched_stg_abbhash = ['sched_stg'] # every path of abbs
+sched_stg_aggregatehash = ['sched_stg'] # every aggregated path (order independent)
+# overall_configs
+config_genetic = ["feed_genetic","sched_genetic","trace_stg"]
+config_afl = ["feed_afl","sched_afl","trace_stg"]
+config_frafl = ["feed_afl","sched_afl","feed_longest","trace_stg","trace_job_response_times"]
+config_stg = ["feed_stg_aggregatehash","sched_stg_aggregatehash","mutate_stg","feed_job_wort","feed_job_crpd"]
+config_stg_woet = ["feed_stg_aggregatehash","sched_stg_aggregatehash","mutate_stg","feed_job_wort","feed_job_woet","feed_job_crpd","feed_stg_abb_woet"]
+# config_stg_aggregate = ["feed_stg_aggregatehash","sched_stg_aggregatehash","mutate_stg"]
+config_stg_abbpath = ["feed_stg_abbhash","sched_stg_abbhash","mutate_stg"]
+config_stg_edge = ["feed_stg_edge","sched_stg_edge","mutate_stg"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+debug = true
+
+[dependencies]
+libafl = { path = "../../WORK/FRET/LibAFL/libafl/", features = ["multipart_inputs", "prelude"] }
+libafl_bolts = { path = "../../WORK/FRET/LibAFL/libafl_bolts/" }
+libafl_targets = { path = "../../WORK/FRET/LibAFL/libafl_targets/" }
+libafl_qemu = { path = "../../WORK/FRET/LibAFL/libafl_qemu/", features = ["aarch64", "systemmode"], default-features = false }
+serde = { version = "1.0", default-features = false, features = ["alloc"] } # serialization lib
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+hashbrown =  { version = "0.14.0", features = ["serde"] } # A faster hashmap, nostd compatible
+petgraph = { version="0.6.5", features = ["serde-1"] }
+ron = "0.7" # write serialized data - including hashmaps
+rand = "0.5"
+clap = { version = "4.4.11", features = ["derive"] }
+csv = "1.3.0"
+log = "0.4"
+simple_moving_average = "1.0.2"
+itertools = "0.13.0"
+anyhow = "1.0"
+goblin = "0.7"
+once_cell = "1.19"
+lazy_static = "1.4"
+chrono = "0.4"
+linux_fret_analyzer = { path = "../linux_fret_analyzer" }
