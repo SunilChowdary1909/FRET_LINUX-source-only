@@ -101,11 +101,17 @@ container to install the cross-compiler. Build outputs go under
 The published runtime configuration is
 [`fuzz_config.txt`](FRET_Linux/linux_fret_fuzzer/fuzz_config.txt), a
 `KEY=VALUE` text file containing `FUZZ_MAIN`, `FUZZ_INPUT`, `FUZZ_INPUT_LEN`,
-`BREAKPOINT`, and `INTERRUPTS`. The configuration loader also supports CSV
-configurations, but **`fuzz_config.csv` is not present** in this public
-repository. Do not substitute an old experiment CSV. The committed address
-values are an example for the sample setup; verify or update them for the
-target ELF and guest kernel you use.
+`BREAKPOINT`, and `INTERRUPTS`. The repository also includes an optional
+[`fuzz_config.csv`](FRET_Linux/linux_fret_fuzzer/fuzz_config.csv) with entries
+only for the published `periodic_mtx`, `chain_mtx`, `avfusion`, and
+`avfusion_oracle` sample workloads; unrelated target configurations are not
+included. To select a CSV row, pass `--config-key avfusion` (or another listed
+key) along with `--config .../fuzz_config.csv`. The text configuration remains
+the default example used below.
+
+The CSV and text files contain example target addresses. Verify or update
+them for the exact target ELF and guest kernel you build; these addresses have
+not been validated against newly built binaries in this environment.
 
 The source publication does not include:
 

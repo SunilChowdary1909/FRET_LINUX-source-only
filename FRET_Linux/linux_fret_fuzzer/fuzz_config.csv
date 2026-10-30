@@ -1,0 +1,5 @@
+kernel,main,input,input_len,breakpoint,reserved,interrupts
+periodic_mtx,0x400600,0x4c1a20,1024,__arm64_sys_getpid,,47#500
+chain_mtx,0x400600,0x4c1980,1024,__arm64_sys_getpid,,47#500
+avfusion,0x400d40,0x4b19d0,1024,__arm64_sys_getpid,,47#500
+avfusion_oracle,0x400d00,0x4a19d0,1024,__arm64_sys_getpid,,47#500
